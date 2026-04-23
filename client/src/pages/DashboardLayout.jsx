@@ -12,7 +12,7 @@ import {
   Briefcase,
 } from 'lucide-react';
 import { animate, stagger } from 'animejs';
-import { useAuth } from '../components/AuthContext';
+import { useAuth } from '../components/auth-context';
 import { fetchDashboardOverview, updateDashboardMessage } from '../lib/dashboardApi';
 import './Dashboard.css';
 
@@ -154,20 +154,14 @@ const DashboardLayout = () => {
     }
   }, [isMobileMenuOpen]);
 
-  useEffect(() => {
-    const nextSelectedMessage = dashboardData.messages.find((message) => message.id === selectedMessageId);
-    const firstAvailableMessage = dashboardData.messages.find((message) => message.status !== 'archived')
-      || dashboardData.messages[0]
-      || null;
-
-    if (!nextSelectedMessage && firstAvailableMessage) {
-      setSelectedMessageId(firstAvailableMessage.id);
-    }
-
-    if (!firstAvailableMessage) {
-      setSelectedMessageId(null);
-    }
-  }, [dashboardData.messages, selectedMessageId]);
+  const firstAvailableMessage = dashboardData.messages.find((message) => message.status !== 'archived')
+    || dashboardData.messages[0]
+    || null;
+  const resolvedSelectedMessageId = dashboardData.messages.some(
+    (message) => message.id === selectedMessageId,
+  )
+    ? selectedMessageId
+    : firstAvailableMessage?.id || null;
 
   const toggleMobileMenu = () => {
     if (isMobileMenuOpen) {
@@ -215,7 +209,7 @@ const DashboardLayout = () => {
     dashboardError,
     dashboardLoading,
     refreshDashboard: handleRefreshDashboard,
-    selectedMessageId,
+    selectedMessageId: resolvedSelectedMessageId,
     setSelectedMessageId,
     updateMessage: handleMessageUpdate,
     updatingMessageId,

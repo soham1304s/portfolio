@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { X, Mail, Lock, User, ArrowRight, Sparkles, Loader2 } from 'lucide-react';
 import { animate } from 'animejs';
-import { useAuth } from './AuthContext';
+import { useAuth } from './auth-context';
 import './LoginModal.css';
 
 const LoginModal = ({ isOpen, onClose, onSuccess }) => {

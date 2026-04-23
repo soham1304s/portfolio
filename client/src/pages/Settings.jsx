@@ -1,6 +1,6 @@
 import React from 'react';
 import { User, Lock, Bell, Palette, Globe, ShieldCheck, Check } from 'lucide-react';
-import { useAuth } from '../components/AuthContext';
+import { useAuth } from '../components/auth-context';
 import './DashboardPages.css';
 
 const Settings = () => {

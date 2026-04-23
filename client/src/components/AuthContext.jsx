@@ -1,8 +1,7 @@
-import { createContext, useContext, useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { toast } from 'sonner';
 import { API_BASE_URL } from '../lib/apiBaseUrl';
-
-const AuthContext = createContext();
+import { AuthContext } from './auth-context';
 
 const readApiResponse = async (response) => {
     const rawBody = await response.text();
@@ -34,8 +33,6 @@ const readApiResponse = async (response) => {
         rawBody,
     };
 };
-
-export const useAuth = () => useContext(AuthContext);
 
 export const AuthProvider = ({ children }) => {
     const [user, setUser] = useState(null);
@@ -106,7 +103,7 @@ export const AuthProvider = ({ children }) => {
             const message = payload?.message || rawBody || 'Login failed';
             toast.error(message);
             return { success: false, message };
-        } catch (error) {
+        } catch {
             toast.error('Server error during login');
             return { success: false, message: 'Server error' };
         }
@@ -138,7 +135,7 @@ export const AuthProvider = ({ children }) => {
             const message = payload?.message || rawBody || 'Registration failed';
             toast.error(message);
             return { success: false, message };
-        } catch (error) {
+        } catch {
             toast.error('Server error during registration');
             return { success: false, message: 'Server error' };
         }

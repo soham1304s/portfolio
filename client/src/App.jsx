@@ -6,7 +6,7 @@ import Messages from './pages/Messages';
 import Analytics from './pages/Analytics';
 import Settings from './pages/Settings';
 import ProjectEditor from './pages/ProjectEditor';
-import { useAuth } from './components/AuthContext';
+import { useAuth } from './components/auth-context';
 import LoginModal from './components/LoginModal';
 import ProtectedRoute from './components/ProtectedRoute';
 import { useNavigate, useLocation } from 'react-router-dom';
@@ -32,14 +32,13 @@ import {
   SunMedium,
   ChevronDown,
   Volume2,
-  VolumeX,
   Wrench,
   X,
   CheckCircle2,
   Send,
 } from 'lucide-react';
 import { Toaster, toast } from 'sonner';
-import backgroundVideo from './assets/video.mp4';
+import editorialScene from './assets/editorial-scene.svg';
 import resumeFile from './assets/Soham_Mondal_Resume (1) (1).docx?url';
 import spotifyPlaceholder from './assets/spotify-placeholder.png';
 import { API_BASE_URL } from './lib/apiBaseUrl';
@@ -293,7 +292,6 @@ function App() {
   const [activeSection, setActiveSection] = useState('hey');
   const [isMobileNavOpen, setIsMobileNavOpen] = useState(false);
   const [isMobileNavVisible, setIsMobileNavVisible] = useState(false);
-  const [isMuted, setIsMuted] = useState(true);
   const [contactForm, setContactForm] = useState(INITIAL_CONTACT_FORM);
   const [contactStatus, setContactStatus] = useState({
     state: 'idle',
@@ -314,22 +312,33 @@ function App() {
   const [chatInput, setChatInput] = useState('');
   const [isTyping, setIsTyping] = useState(false);
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
-  const { user, logout } = useAuth();
+  const { user } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
-
-  useEffect(() => {
-    if (location.state?.openLogin) {
-      setIsAuthModalOpen(true);
-    }
-  }, [location.state]);
-  const videoRef = useRef(null);
   const chatScrollRef = useRef(null);
   const trackListShellRef = useRef(null);
   const tracksRef = useRef([]);
   const audioRef = useRef(null);
   const messageDrawerRef = useRef(null);
   const messageDrawerContentRef = useRef(null);
+  const isRouteAuthModalOpen = Boolean(location.state?.openLogin);
+  const isAuthModalVisible = isAuthModalOpen || isRouteAuthModalOpen;
+
+  const closeAuthModal = () => {
+    setIsAuthModalOpen(false);
+
+    if (!isRouteAuthModalOpen) {
+      return;
+    }
+
+    const nextLocationState = { ...(location.state || {}) };
+    delete nextLocationState.openLogin;
+
+    navigate(location.pathname, {
+      replace: true,
+      state: Object.keys(nextLocationState).length > 0 ? nextLocationState : null,
+    });
+  };
 
   useEffect(() => {
     document.documentElement.dataset.theme = theme;
@@ -1313,8 +1322,8 @@ function App() {
       <Route path="*" element={
         <div className="page-shell" ref={rootRef}>
           <LoginModal 
-            isOpen={isAuthModalOpen} 
-            onClose={() => setIsAuthModalOpen(false)} 
+            isOpen={isAuthModalVisible}
+            onClose={closeAuthModal}
             onSuccess={() => navigate('/dashboard')}
           />
           <Toaster position="bottom-right" theme={theme} expand={false} richColors />
@@ -1555,29 +1564,12 @@ function App() {
 
         <section id="frame" data-section className="feature-section panel">
           <div className="feature-stage">
-            <video
-              ref={videoRef}
+            <img
               className="feature-video"
-              autoPlay
-              muted={isMuted}
-              loop
-              playsInline
-            >
-              <source src={backgroundVideo} type="video/mp4" />
-            </video>
-
-            <button
-              className="video-control"
-              onClick={() => setIsMuted(!isMuted)}
-              aria-label={isMuted ? 'Unmute video' : 'Mute video'}
-            >
-              {isMuted ? (
-                <VolumeX size={18} strokeWidth={2.2} />
-              ) : (
-                <Volume2 size={18} strokeWidth={2.2} />
-              )}
-              <span>{isMuted ? 'Unmute' : 'Mute'}</span>
-            </button>
+              src={editorialScene}
+              alt=""
+              aria-hidden="true"
+            />
 
             <div className="feature-credits">
               <p>Feature</p>

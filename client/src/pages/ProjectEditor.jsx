@@ -33,17 +33,10 @@ const ProjectEditor = () => {
   const [tagInput, setTagInput] = useState('');
   
   // Layout state
-  const [projectSections, setProjectSections] = useState([
+  const [projectSections] = useState([
     { id: 1, title: 'Project Overview', type: 'text' },
     { id: 2, title: 'System Architecture', type: 'diagram' }
   ]);
-
-  // Links state
-  const [links, setLinks] = useState({
-    github: '',
-    live: '',
-    api: ''
-  });
 
   const handleAddTag = (e) => {
     if (e.key === 'Enter' && tagInput.trim()) {
