@@ -1,0 +1,120 @@
+<svg
+  xmlns="http://www.w3.org/2000/svg"
+  width="1600"
+  height="980"
+  viewBox="0 0 1600 980"
+  fill="none"
+>
+  <defs>
+    <linearGradient id="bg" x1="800" y1="0" x2="800" y2="980" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#F6F0E4" />
+      <stop offset="1" stop-color="#E8DECD" />
+    </linearGradient>
+    <radialGradient id="glow" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(1018 178) rotate(90) scale(264 442)">
+      <stop stop-color="#FFD977" stop-opacity=".9" />
+      <stop offset=".55" stop-color="#FFD977" stop-opacity=".22" />
+      <stop offset="1" stop-color="#FFD977" stop-opacity="0" />
+    </radialGradient>
+    <linearGradient id="skin-head" x1="911" y1="280" x2="1173" y2="472" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#F7DFC1" />
+      <stop offset=".55" stop-color="#E4B87E" />
+      <stop offset="1" stop-color="#AE7B49" />
+    </linearGradient>
+    <linearGradient id="skin-body" x1="860" y1="389" x2="1048" y2="858" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#F2D2A7" />
+      <stop offset=".6" stop-color="#C69158" />
+      <stop offset="1" stop-color="#9A6336" />
+    </linearGradient>
+    <linearGradient id="skin-hand" x1="679" y1="381" x2="810" y2="508" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#F0CC9D" />
+      <stop offset="1" stop-color="#C89460" />
+    </linearGradient>
+    <linearGradient id="fabric" x1="118" y1="973" x2="885" y2="447" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#050404" />
+      <stop offset=".7" stop-color="#12100F" />
+      <stop offset="1" stop-color="#23201E" />
+    </linearGradient>
+    <linearGradient id="hair" x1="1115" y1="160" x2="1394" y2="615" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#1B120C" />
+      <stop offset=".55" stop-color="#2A1B12" />
+      <stop offset="1" stop-color="#5E3D27" />
+    </linearGradient>
+    <linearGradient id="hair-highlight" x1="1175" y1="256" x2="1337" y2="551" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#D8B27B" />
+      <stop offset=".7" stop-color="#7B5330" />
+      <stop offset="1" stop-color="#3D2416" stop-opacity="0" />
+    </linearGradient>
+    <radialGradient id="vignette" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(800 490) rotate(90) scale(540 880)">
+      <stop offset=".7" stop-color="#000" stop-opacity="0" />
+      <stop offset="1" stop-color="#000" stop-opacity=".16" />
+    </radialGradient>
+    <filter id="blur" x="555" y="-70" width="937" height="809" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB">
+      <feFlood flood-opacity="0" result="BackgroundImageFix" />
+      <feGaussianBlur in="SourceGraphic" stdDeviation="30" />
+    </filter>
+    <filter id="grain" x="0" y="0" width="1600" height="980" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB">
+      <feTurbulence type="fractalNoise" baseFrequency=".82" numOctaves="2" stitchTiles="stitch" />
+      <feColorMatrix type="saturate" values="0" />
+      <feComponentTransfer>
+        <feFuncA type="table" tableValues="0 0 .05 .08" />
+      </feComponentTransfer>
+    </filter>
+  </defs>
+
+  <rect width="1600" height="980" fill="url(#bg)" />
+  <g opacity=".9" filter="url(#blur)">
+    <ellipse cx="1023" cy="178" rx="382" ry="212" fill="url(#glow)" />
+  </g>
+
+  <path
+    d="M0 760C134 724 257 661 400 569C560 465 669 420 786 493C858 539 896 630 833 737C740 895 537 1008 162 1036H0V760Z"
+    fill="url(#fabric)"
+  />
+  <path
+    d="M951 376C1000 357 1059 359 1092 392C1122 421 1126 468 1087 525C1050 579 1003 638 998 713C995 758 1012 817 1048 878C933 853 865 786 837 680C813 588 836 496 885 432C904 407 928 387 951 376Z"
+    fill="url(#skin-body)"
+  />
+  <path
+    d="M683 421C713 387 762 370 799 382C834 394 848 424 838 458C827 491 788 519 745 515C701 511 661 480 656 450C654 440 665 430 683 421Z"
+    fill="url(#skin-hand)"
+  />
+  <ellipse
+    cx="1136"
+    cy="350"
+    rx="244"
+    ry="197"
+    transform="rotate(14 1136 350)"
+    fill="url(#hair)"
+  />
+  <circle cx="1358" cy="526" r="112" fill="#5B3A24" />
+  <path
+    d="M1185 255C1245 261 1303 298 1334 360C1368 427 1363 481 1329 527C1297 570 1249 598 1191 598C1142 597 1120 560 1125 519C1133 458 1172 430 1198 385C1218 354 1225 318 1219 288C1217 273 1200 260 1185 255Z"
+    fill="url(#hair-highlight)"
+    opacity=".72"
+  />
+  <ellipse
+    cx="1042"
+    cy="331"
+    rx="176"
+    ry="123"
+    transform="rotate(-16 1042 331)"
+    fill="url(#skin-head)"
+  />
+  <path
+    d="M918 358C944 331 979 314 1018 308C1054 302 1087 308 1108 324C1120 334 1127 344 1126 356C1111 355 1095 361 1078 379C1054 406 1022 420 986 421C955 422 928 413 908 392C900 384 903 372 918 358Z"
+    fill="#EDD6B2"
+    opacity=".94"
+  />
+  <ellipse
+    cx="932"
+    cy="458"
+    rx="121"
+    ry="88"
+    transform="rotate(-34 932 458)"
+    fill="#000"
+    fill-opacity=".18"
+    filter="url(#blur)"
+  />
+  <rect width="1600" height="980" fill="url(#vignette)" />
+  <rect width="1600" height="980" fill="#FFF" filter="url(#grain)" />
+</svg>
