@@ -12,8 +12,11 @@ import {
   Briefcase,
 } from 'lucide-react';
 import { animate, stagger } from 'animejs';
+import { io } from 'socket.io-client';
+import { toast } from 'sonner';
 import { useAuth } from '../components/auth-context';
-import { fetchDashboardOverview, updateDashboardMessage } from '../lib/dashboardApi';
+import { API_BASE_URL } from '../lib/apiBaseUrl';
+import { fetchDashboardOverview, updateDashboardMessage, replyToMessage, sendDirectMessage } from '../lib/dashboardApi';
 import './Dashboard.css';
 
 const EMPTY_DASHBOARD_STATE = {
@@ -130,6 +133,35 @@ const DashboardLayout = () => {
   }, [token]);
 
   useEffect(() => {
+    if (!token) return;
+
+    const socket = io(API_BASE_URL);
+
+    socket.on('connect', () => {
+      console.log('Dashboard Socket Connected');
+    });
+
+    socket.on('new_message', (data) => {
+      toast.success(`New message from ${data.name}`, {
+        description: data.subject,
+        action: {
+          label: 'View',
+          onClick: () => window.location.href = '/dashboard/messages'
+        }
+      });
+      loadDashboard({ showLoading: false });
+    });
+
+    socket.on('new_reply', () => {
+      loadDashboard({ showLoading: false });
+    });
+
+    return () => {
+      socket.disconnect();
+    };
+  }, [token]);
+
+  useEffect(() => {
     animate('.mobile-dock-item', {
       translateY: [20, 0],
       opacity: [0, 1],
@@ -204,6 +236,35 @@ const DashboardLayout = () => {
     }
   };
 
+  const handleSendReply = async (messageId, text) => {
+    setUpdatingMessageId(messageId);
+    try {
+      await replyToMessage(token, messageId, text);
+      await loadDashboard({ showLoading: false });
+      return true;
+    } catch (error) {
+      setDashboardError(error.message || 'Unable to send reply.');
+      return false;
+    } finally {
+      setUpdatingMessageId(null);
+    }
+  };
+
+  const handleComposeMessage = async (messageData) => {
+    setUpdatingMessageId('new');
+    try {
+      await sendDirectMessage(token, messageData);
+      await loadDashboard({ showLoading: false });
+      return true;
+    } catch (error) {
+      setDashboardError(error.message || 'Unable to send message.');
+      return false;
+    } finally {
+      setUpdatingMessageId(null);
+    }
+  };
+
+
   const dashboardContext = {
     dashboardData,
     dashboardError,
@@ -212,6 +273,8 @@ const DashboardLayout = () => {
     selectedMessageId: resolvedSelectedMessageId,
     setSelectedMessageId,
     updateMessage: handleMessageUpdate,
+    sendReply: handleSendReply,
+    composeMessage: handleComposeMessage,
     updatingMessageId,
   };
 

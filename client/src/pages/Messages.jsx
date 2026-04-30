@@ -6,6 +6,9 @@ import {
   RefreshCw,
   RotateCcw,
   Search,
+  Send,
+  Plus,
+  X,
   Star,
 } from 'lucide-react';
 import { useOutletContext } from 'react-router-dom';
@@ -39,10 +42,16 @@ const Messages = () => {
     selectedMessageId,
     setSelectedMessageId,
     updateMessage,
+    sendReply,
+    composeMessage,
     updatingMessageId,
   } = useOutletContext();
   const [activeTab, setActiveTab] = useState('inbox');
   const [searchQuery, setSearchQuery] = useState('');
+  const [replyText, setReplyText] = useState('');
+  const [isReplying, setIsReplying] = useState(false);
+  const [isComposing, setIsComposing] = useState(false);
+  const [newMsgData, setNewMsgData] = useState({ name: '', email: '', subject: '', message: '' });
 
   const normalizedQuery = searchQuery.trim().toLowerCase();
   const activeTabConfig = MESSAGE_TABS.find((tab) => tab.id === activeTab) || MESSAGE_TABS[0];
@@ -108,6 +117,26 @@ const Messages = () => {
     await updateMessage(selectedMessage.id, { starred: !selectedMessage.starred });
   };
 
+  const onSendReply = async (e) => {
+    e.preventDefault();
+    if (!replyText.trim() || !selectedMessage) return;
+
+    const success = await sendReply(selectedMessage.id, replyText);
+    if (success) {
+      setReplyText('');
+      setIsReplying(false);
+    }
+  };
+
+  const handleComposeSubmit = async (e) => {
+    e.preventDefault();
+    const success = await composeMessage(newMsgData);
+    if (success) {
+      setIsComposing(false);
+      setNewMsgData({ name: '', email: '', subject: '', message: '' });
+    }
+  };
+
   return (
     <div className="messages-page">
       <div className="page-header">
@@ -122,6 +151,13 @@ const Messages = () => {
               onChange={(event) => setSearchQuery(event.target.value)}
             />
           </div>
+          <button 
+            className="icon-btn-outline" 
+            onClick={() => setIsComposing(true)} 
+            title="Compose New Message"
+          >
+            <Plus size={18} />
+          </button>
           <button className="icon-btn-outline" onClick={refreshDashboard} title="Refresh messages">
             <RefreshCw size={18} />
           </button>
@@ -239,10 +275,121 @@ const Messages = () => {
               <article className="message-panel__body">
                 <p>{selectedMessage.message}</p>
               </article>
+
+              {selectedMessage.replies?.length > 0 && (
+                <div className="message-panel__replies">
+                  <h4 className="replies-title">Replies</h4>
+                  {selectedMessage.replies.map((reply, idx) => (
+                    <div key={idx} className="reply-bubble">
+                      <p>{reply.text}</p>
+                      <span className="reply-date">{formatMessageDate(reply.createdAt)}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              <div className="message-panel__composer">
+                {!isReplying ? (
+                  <button 
+                    className="cta cta--primary" 
+                    onClick={() => setIsReplying(true)}
+                  >
+                    Reply to {selectedMessage.sender.name.split(' ')[0]}
+                  </button>
+                ) : (
+                  <form className="reply-form" onSubmit={onSendReply}>
+                    <textarea 
+                      placeholder="Write your reply..."
+                      value={replyText}
+                      onChange={(e) => setReplyText(e.target.value)}
+                      autoFocus
+                    />
+                    <div className="reply-form__actions">
+                      <button 
+                        type="button" 
+                        className="cta cta--ghost" 
+                        onClick={() => setIsReplying(false)}
+                      >
+                        Cancel
+                      </button>
+                      <button 
+                        type="submit" 
+                        className="cta cta--primary"
+                        disabled={!replyText.trim() || updatingMessageId === selectedMessage.id}
+                      >
+                        <Send size={16} />
+                        {updatingMessageId === selectedMessage.id ? 'Sending...' : 'Send Reply'}
+                      </button>
+                    </div>
+                  </form>
+                )}
+              </div>
             </div>
           )}
         </main>
       </div>
+
+      {isComposing && (
+        <div className="compose-overlay" onClick={() => setIsComposing(false)}>
+          <div className="compose-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="compose-header">
+              <h3>New Message</h3>
+              <button className="close-btn" onClick={() => setIsComposing(false)}>
+                <X size={20} />
+              </button>
+            </div>
+            <form onSubmit={handleComposeSubmit} className="compose-form">
+              <div className="form-group">
+                <label>Recipient Name</label>
+                <input 
+                  type="text" 
+                  placeholder="e.g. John Doe"
+                  value={newMsgData.name}
+                  onChange={(e) => setNewMsgData({...newMsgData, name: e.target.value})}
+                  required
+                />
+              </div>
+              <div className="form-group">
+                <label>Recipient Email</label>
+                <input 
+                  type="email" 
+                  placeholder="e.g. john@example.com"
+                  value={newMsgData.email}
+                  onChange={(e) => setNewMsgData({...newMsgData, email: e.target.value})}
+                  required
+                />
+              </div>
+              <div className="form-group">
+                <label>Subject</label>
+                <input 
+                  type="text" 
+                  placeholder="Regarding..."
+                  value={newMsgData.subject}
+                  onChange={(e) => setNewMsgData({...newMsgData, subject: e.target.value})}
+                  required
+                />
+              </div>
+              <div className="form-group">
+                <label>Message</label>
+                <textarea 
+                  placeholder="Write your message here..."
+                  value={newMsgData.message}
+                  onChange={(e) => setNewMsgData({...newMsgData, message: e.target.value})}
+                  required
+                />
+              </div>
+              <div className="compose-footer">
+                <button type="button" className="cta cta--ghost" onClick={() => setIsComposing(false)}>
+                  Cancel
+                </button>
+                <button type="submit" className="cta cta--primary" disabled={updatingMessageId === 'new'}>
+                  {updatingMessageId === 'new' ? 'Sending...' : 'Send Message'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

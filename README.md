@@ -1,6 +1,6 @@
 # Soham Mondal | Professional Portfolio
 
-A premium, full-stack portfolio website built with React, Node.js, Anime.js, and a Spotify-powered hero player. This project features a sophisticated contact system plus a curated music card backed by Spotify playlist metadata served securely through the backend.
+A premium, full-stack portfolio website built with React, Node.js, Anime.js, and a curated hero audio player. This project features a sophisticated contact system plus a curated music card designed for a professional developer aesthetic.
 
 ## 🚀 Email & Contact System
 
@@ -18,9 +18,6 @@ The contact section is a robust full-stack implementation that handles inquiries
 - **Rate Limiting**: Protected by `express-rate-limit` to prevent abuse. Each IP is limited to 5 submissions every 15 minutes.
 - **Data Persistence**: All submissions are securely logged into a structured JSON file (`backend/data/contact-submissions.json`) as a backup for email notifications.
 - **Security**: Features sanitization and normalization of user input to protect against injection and ensure data integrity.
-- **Spotify Client Credentials**: Uses Spotify’s server-to-server client-credentials flow so the frontend never exposes the Spotify secret.
-- **Playlist Caching**: Caches the Spotify access token and normalized playlist payload to reduce latency and avoid unnecessary Spotify API requests.
-- **Curated Player Data**: Exposes `/api/spotify/playlist` so the hero card can show playlist songs, album images, artist names, and a link back to Spotify.
 
 ### 🛠️ Configuration
 The system requires the following environment variables in `backend/.env`:
@@ -32,12 +29,6 @@ SMTP_PORT=587
 SMTP_USER=your-email@example.com
 SMTP_PASS=your-app-password
 CONTACT_TO_EMAIL=your-destination@gmail.com
-
-SPOTIFY_CLIENT_ID=your-spotify-app-client-id
-SPOTIFY_CLIENT_SECRET=your-spotify-app-client-secret
-SPOTIFY_PLAYLIST_ID=your-public-spotify-playlist-id
-SPOTIFY_MARKET=IN
-SPOTIFY_PLAYLIST_LIMIT=6
 ```
 
 If the frontend and backend are deployed on different origins, also add this in `client/.env`:
@@ -45,17 +36,6 @@ If the frontend and backend are deployed on different origins, also add this in 
 ```env
 VITE_API_BASE_URL=https://your-backend-domain.com
 ```
-
-### 🎵 Spotify Requirements
-To enable the playlist-powered music card:
-
-1. Create a Spotify app in the Spotify Developer Dashboard.
-2. Copy the app Client ID and Client Secret into `backend/.env`.
-3. Choose a public Spotify playlist and copy its playlist ID.
-4. Put the Spotify environment variables above into `backend/.env`.
-5. Start both servers.
-
-This setup does not require Spotify Premium, user login, or OAuth redirects because it only reads public playlist metadata through the backend.
 
 ## 📂 Project Structure
 
@@ -77,9 +57,6 @@ cd client
 npm install
 npm run dev
 ```
-
-### Spotify Playlist Flow
-- `GET /api/spotify/playlist`: returns normalized public playlist data for the hero card.
 
 ## 🌐 Deployment
 

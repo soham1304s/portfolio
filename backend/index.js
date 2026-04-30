@@ -1,4 +1,6 @@
 const express = require('express');
+const http = require('http');
+const { Server } = require('socket.io');
 const cors = require('cors');
 const dotenv = require('dotenv');
 const fs = require('fs/promises');
@@ -17,13 +19,7 @@ const PENDING_NOTIFICATION_RETRY_INTERVAL_MS = Number.parseInt(
     process.env.PENDING_NOTIFICATION_RETRY_INTERVAL_MS || String(5 * 60 * 1000),
     10,
 );
-const SPOTIFY_TOKEN_URL = 'https://accounts.spotify.com/api/token';
-const SPOTIFY_PLAYLIST_URL = 'https://api.spotify.com/v1/playlists';
-const SPOTIFY_ACCESS_TOKEN_REFRESH_BUFFER_MS = 60 * 1000;
-const SPOTIFY_PLAYLIST_CACHE_TTL_MS = Number.parseInt(
-    process.env.SPOTIFY_PLAYLIST_CACHE_TTL_MS || String(5 * 60 * 1000),
-    10,
-);
+
 
 // Rate limiting
 const contactLimiter = rateLimit({
@@ -59,6 +55,32 @@ const connectDB = async () => {
 
 app.use(cors());
 app.use(express.json());
+
+const server = http.createServer(app);
+const io = new Server(server, {
+    cors: {
+        origin: "*",
+        methods: ["GET", "POST"]
+    }
+});
+
+app.use((req, res, next) => {
+    req.io = io;
+    next();
+});
+
+io.on('connection', (socket) => {
+    console.log('Socket Client Connected:', socket.id);
+    
+    socket.on('join_dashboard', (userId) => {
+        socket.join(`user_${userId}`);
+        console.log(`User ${userId} joined dashboard room`);
+    });
+
+    socket.on('disconnect', () => {
+        console.log('Socket Client Disconnected');
+    });
+});
 
 const normalizeText = (value) => String(value || '').trim().replace(/\s+/g, ' ');
 const stripHtml = (value) => normalizeText(String(value || '').replace(/<[^>]*>/g, ' '));
@@ -178,15 +200,7 @@ const getTransportOptions = (mailConfig) => {
 
 let mailTransporter = null;
 let isProcessingPendingNotifications = false;
-let spotifyAccessTokenCache = {
-    accessToken: '',
-    expiresAt: 0,
-};
-let spotifyPlaylistCache = {
-    cacheKey: '',
-    expiresAt: 0,
-    payload: null,
-};
+
 
 const readJsonFile = async (filePath, fallbackValue) => {
     try {
@@ -403,240 +417,12 @@ const readHttpResponse = async (response) => {
     };
 };
 
-const getSpotifyConfig = () => {
-    const clientId = normalizeText(process.env.SPOTIFY_CLIENT_ID);
-    const clientSecret = normalizeText(process.env.SPOTIFY_CLIENT_SECRET);
-    const playlistId = normalizeText(process.env.SPOTIFY_PLAYLIST_ID);
-    const market = normalizeText(process.env.SPOTIFY_MARKET || 'IN').toUpperCase();
-    const playlistLimit = Math.min(
-        12,
-        Math.max(1, Number.parseInt(process.env.SPOTIFY_PLAYLIST_LIMIT || '6', 10)),
-    );
-    const missing = [];
 
-    if (!clientId) {
-        missing.push('SPOTIFY_CLIENT_ID');
-    }
-
-    if (!clientSecret) {
-        missing.push('SPOTIFY_CLIENT_SECRET');
-    }
-
-    if (!playlistId) {
-        missing.push('SPOTIFY_PLAYLIST_ID');
-    }
-
-    return {
-        clientId,
-        clientSecret,
-        isConfigured: missing.length === 0,
-        market,
-        missing,
-        playlistId,
-        playlistLimit,
-    };
-};
-
-const logSpotifyConfiguration = () => {
-    const spotifyConfig = getSpotifyConfig();
-
-    if (!spotifyConfig.isConfigured) {
-        console.warn(
-            `Spotify playlist integration is disabled. Missing environment variables: ${spotifyConfig.missing.join(', ')}`,
-        );
-        return;
-    }
-
-    console.log(
-        `Spotify playlist integration is ready for playlist ${spotifyConfig.playlistId} (${spotifyConfig.market})`,
-    );
-};
-
-const requestSpotifyClientAccessToken = async () => {
-    const spotifyConfig = getSpotifyConfig();
-    const basicAuthToken = Buffer.from(
-        `${spotifyConfig.clientId}:${spotifyConfig.clientSecret}`,
-        'utf8',
-    ).toString('base64');
-
-    const response = await fetch(SPOTIFY_TOKEN_URL, {
-        method: 'POST',
-        headers: {
-            Authorization: `Basic ${basicAuthToken}`,
-            'Content-Type': 'application/x-www-form-urlencoded',
-        },
-        body: new URLSearchParams({
-            grant_type: 'client_credentials',
-        }),
-    });
-    const { payload, rawBody } = await readHttpResponse(response);
-
-    if (!response.ok) {
-        throw createHttpError(
-            response.status,
-            payload?.error_description
-            || payload?.error?.message
-            || payload?.error
-            || rawBody
-            || 'Spotify token request failed.',
-            'spotify_token_error',
-        );
-    }
-
-    return payload;
-};
-
-const getSpotifyAccessToken = async ({ forceRefresh = false } = {}) => {
-    const spotifyConfig = getSpotifyConfig();
-
-    if (!spotifyConfig.isConfigured) {
-        throw createHttpError(
-            503,
-            `Spotify integration is not configured. Missing: ${spotifyConfig.missing.join(', ')}`,
-            'spotify_not_configured',
-        );
-    }
-
-    if (
-        !forceRefresh
-        && spotifyAccessTokenCache.accessToken
-        && spotifyAccessTokenCache.expiresAt > Date.now() + SPOTIFY_ACCESS_TOKEN_REFRESH_BUFFER_MS
-    ) {
-        return spotifyAccessTokenCache.accessToken;
-    }
-
-    const tokenPayload = await requestSpotifyClientAccessToken();
-
-    spotifyAccessTokenCache = {
-        accessToken: tokenPayload.access_token,
-        expiresAt: Date.now() + (Number.parseInt(tokenPayload.expires_in || '3600', 10) * 1000),
-    };
-
-    return spotifyAccessTokenCache.accessToken;
-};
-
-const normalizeSpotifyPlaylist = (playlistPayload, playlistLimit) => {
-    const trackItems = Array.isArray(playlistPayload?.tracks?.items)
-        ? playlistPayload.tracks.items
-        : [];
-    const tracks = trackItems
-        .map((item, index) => {
-            const track = item?.track;
-
-            if (!track || track.type !== 'track') {
-                return null;
-            }
-
-            const artists = Array.isArray(track.artists)
-                ? track.artists
-                    .map((artist) => ({
-                        name: normalizeText(artist?.name),
-                        url: normalizeText(artist?.external_urls?.spotify),
-                    }))
-                    .filter((artist) => artist.name)
-                : [];
-            const albumImages = Array.isArray(track.album?.images) ? track.album.images : [];
-            const artistLine = artists.map((artist) => artist.name).join(', ') || 'Unknown artist';
-            const albumName = normalizeText(track.album?.name) || 'Unknown album';
-            const title = normalizeText(track.name) || `Track ${index + 1}`;
-
-            return {
-                albumImageUrl: albumImages[0]?.url || '',
-                albumName,
-                artistLine,
-                artists,
-                durationMs: Number.isFinite(track.duration_ms) ? track.duration_ms : 0,
-                externalUrl: normalizeText(track.external_urls?.spotify),
-                previewUrl: normalizeText(track.preview_url),
-                id: normalizeText(track.id) || `track-${index + 1}`,
-                index: index + 1,
-                title,
-            };
-        })
-        .filter(Boolean)
-        .slice(0, playlistLimit);
-    const playlistImages = Array.isArray(playlistPayload?.images) ? playlistPayload.images : [];
-
-    return {
-        availableTrackCount: tracks.length,
-        description: stripHtml(playlistPayload?.description),
-        externalUrl: normalizeText(playlistPayload?.external_urls?.spotify),
-        hasTracks: tracks.length > 0,
-        id: normalizeText(playlistPayload?.id),
-        imageUrl: playlistImages[0]?.url || tracks[0]?.albumImageUrl || '',
-        ownerName: normalizeText(playlistPayload?.owner?.display_name) || 'Spotify',
-        title: normalizeText(playlistPayload?.name) || 'Curated Playlist',
-        totalFollowers: Number.isFinite(playlistPayload?.followers?.total)
-            ? playlistPayload.followers.total
-            : null,
-        trackCount: Number.isFinite(playlistPayload?.tracks?.total)
-            ? playlistPayload.tracks.total
-            : tracks.length,
-        tracks,
-    };
-};
-
-const fetchSpotifyPlaylist = async ({ forceRefresh = false } = {}) => {
-    const spotifyConfig = getSpotifyConfig();
-    const cacheKey = `${spotifyConfig.playlistId}:${spotifyConfig.market}:${spotifyConfig.playlistLimit}`;
-
-    if (
-        !forceRefresh
-        && spotifyPlaylistCache.payload
-        && spotifyPlaylistCache.cacheKey === cacheKey
-        && spotifyPlaylistCache.expiresAt > Date.now()
-    ) {
-        return spotifyPlaylistCache.payload;
-    }
-
-    const accessToken = await getSpotifyAccessToken({ forceRefresh });
-    const playlistUrl = new URL(`${SPOTIFY_PLAYLIST_URL}/${spotifyConfig.playlistId}`);
-    playlistUrl.searchParams.set('market', spotifyConfig.market);
-    playlistUrl.searchParams.set(
-        'fields',
-        'id,name,description,external_urls.spotify,images,owner(display_name),followers(total),tracks(total,items(track(id,name,type,duration_ms,preview_url,external_urls.spotify,artists(name,external_urls.spotify),album(name,images))))',
-    );
-    const response = await fetch(playlistUrl, {
-        headers: {
-            Authorization: `Bearer ${accessToken}`,
-        },
-    });
-    const { payload, rawBody } = await readHttpResponse(response);
-
-    if (response.status === 401) {
-        if (forceRefresh) {
-            spotifyAccessTokenCache = {
-                accessToken: '',
-                expiresAt: 0,
-            };
-            throw createHttpError(401, 'Spotify access token expired.', 'spotify_token_expired');
-        }
-
-        return fetchSpotifyPlaylist({ forceRefresh: true });
-    }
-
-    if (!response.ok) {
-        throw createHttpError(
-            response.status,
-            payload?.error?.message || rawBody || 'Spotify playlist request failed.',
-            'spotify_api_error',
-        );
-    }
-
-    const normalizedPlaylist = normalizeSpotifyPlaylist(payload, spotifyConfig.playlistLimit);
-
-    spotifyPlaylistCache = {
-        cacheKey,
-        expiresAt: Date.now() + SPOTIFY_PLAYLIST_CACHE_TTL_MS,
-        payload: normalizedPlaylist,
-    };
-
-    return normalizedPlaylist;
-};
 
 // Auth Routes
 app.use('/api/auth', require('./routes/authRoutes'));
 app.use('/api/dashboard', require('./routes/dashboardRoutes'));
+app.use('/api/messages', require('./routes/messageRoutes'));
 
 app.get('/', (req, res) => {
     res.send('Portfolio Backend API is running...');
@@ -670,44 +456,15 @@ app.get('/api/projects', (req, res) => {
     res.json(projects);
 });
 
-app.get('/api/spotify/playlist', async (req, res) => {
-    const spotifyConfig = getSpotifyConfig();
 
-    if (!spotifyConfig.isConfigured) {
-        return res.status(200).json({
-            configured: false,
-            message: `Spotify playlist integration is not configured. Missing: ${spotifyConfig.missing.join(', ')}`,
-            playlist: null,
-            refreshIntervalMs: SPOTIFY_PLAYLIST_CACHE_TTL_MS,
-        });
-    }
 
-    try {
-        const playlist = await fetchSpotifyPlaylist();
-
-        return res.status(200).json({
-            configured: true,
-            message: '',
-            playlist,
-            refreshIntervalMs: SPOTIFY_PLAYLIST_CACHE_TTL_MS,
-        });
-    } catch (error) {
-        console.error('Failed to fetch Spotify playlist:', error.message);
-        
-        // If it's a known Spotify restriction or API error, return a graceful "Not Configured" state
-        // This allows the frontend to show the high-fidelity mock data without a crash.
-        return res.json({
-            configured: false,
-            message: 'Music player is running in curated demo mode.',
-            playlist: null
-        });
-    }
-});
+const Message = require('./models/Message');
 
 app.post('/api/contact', contactLimiter, async (req, res) => {
     const name = normalizeText(req.body.name);
     const email = normalizeText(req.body.email).toLowerCase();
-    const message = String(req.body.message || '').trim();
+    const subject = normalizeText(req.body.subject || 'New Portfolio Inquiry');
+    const messageText = String(req.body.message || '').trim();
     const website = normalizeText(req.body.website);
 
     if (website) {
@@ -724,48 +481,54 @@ app.post('/api/contact', contactLimiter, async (req, res) => {
         return res.status(400).json({ message: 'Please enter a valid email address.' });
     }
 
-    if (message.length < 20) {
+    if (messageText.length < 10) {
         return res.status(400).json({
             message: 'Please share a few more details so I can respond properly.',
         });
     }
 
-    if (message.length > 2000) {
-        return res.status(400).json({
-            message: 'Please keep your message under 2000 characters.',
-        });
-    }
-
     try {
-        const submission = {
-            id: Date.now(),
+        const newMessage = await Message.create({
             name,
             email,
-            message,
-            createdAt: new Date().toISOString(),
-        };
+            subject,
+            message: messageText,
+        });
 
-        await saveContactSubmission(submission);
+        // Emit Socket Event for real-time dashboard update
+        req.io.emit('new_message', {
+            id: newMessage._id,
+            name,
+            email,
+            subject,
+            message: messageText,
+            createdAt: newMessage.createdAt
+        });
+
+        const submission = {
+            id: newMessage._id,
+            name,
+            email,
+            message: messageText,
+            createdAt: newMessage.createdAt,
+        };
 
         try {
             await sendContactNotification(submission);
             void processPendingNotifications();
         } catch (error) {
-            await queuePendingNotification(submission, getErrorMessage(error, 'Unknown mail delivery error'));
-            console.error(
-                'Failed to deliver contact notification immediately:',
-                getErrorMessage(error),
-            );
+            console.error('Failed to deliver notification immediately:', error);
         }
 
         return res.status(201).json({
+            success: true,
             message: 'Message received. Soham will get back to you soon.',
+            data: newMessage
         });
     } catch (error) {
         console.error('Failed to process contact submission:', error);
         return res.status(500).json({
-            message:
-                'Your message could not be delivered right now. Please try again shortly or email me directly.',
+            message: 'Your message could not be delivered right now. Please try again shortly.',
         });
     }
 });
@@ -774,10 +537,10 @@ if (require.main === module) {
     const startServer = async () => {
         await connectDB();
 
-        app.listen(PORT, () => {
+        server.listen(PORT, () => {
             console.log(`Server is running on port ${PORT}`);
             void logMailConfiguration();
-            logSpotifyConfiguration();
+
             void processPendingNotifications();
 
             const retryTimer = setInterval(() => {

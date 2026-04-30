@@ -65,6 +65,36 @@ export const updateDashboardMessage = async (token, messageId, updates) => {
   return payload.message;
 };
 
+export const replyToMessage = async (token, messageId, text) => {
+  const response = await fetch(`${API_BASE_URL}/api/messages/${messageId}/reply`, {
+    method: 'POST',
+    headers: createAuthHeaders(token),
+    body: JSON.stringify({ text }),
+  });
+  const { payload, rawBody } = await readApiResponse(response);
+
+  if (!response.ok || !payload?.success) {
+    throw new Error(payload?.message || rawBody || 'Failed to send reply.');
+  }
+
+  return payload.data;
+};
+
+export const sendDirectMessage = async (token, messageData) => {
+  const response = await fetch(`${API_BASE_URL}/api/messages/send`, {
+    method: 'POST',
+    headers: createAuthHeaders(token),
+    body: JSON.stringify(messageData),
+  });
+  const { payload, rawBody } = await readApiResponse(response);
+
+  if (!response.ok || !payload?.success) {
+    throw new Error(payload?.message || rawBody || 'Failed to send message.');
+  }
+
+  return payload.data;
+};
+
 export const formatRelativeTime = (value) => {
   const timestamp = new Date(value).getTime();
 
